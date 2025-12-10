@@ -1,0 +1,5 @@
+{
+  "name": "Megacable Bridge Script Generator",
+  "description": "A tool to generate a JavaScript snippet for unlocking Bridge Mode on ZTE F6xx modems used by Megacable by injecting hidden form options.",
+  "requestFramePermissions": []
+}
