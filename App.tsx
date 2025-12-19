@@ -46,9 +46,9 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-4 text-xs font-mono text-slate-500 hidden sm:flex">
-             <span>v3.4.4</span>
+             <span>v3.6.0</span>
              <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-             <span className="flex items-center gap-1 text-pink-400"><Bot size={14}/> Protocol Droid Active</span>
+             <span className="flex items-center gap-1 text-green-400"><ShieldCheck size={14}/> Anti-Crash Active</span>
           </div>
         </div>
       </header>
@@ -75,27 +75,23 @@ const App: React.FC = () => {
               <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <h3 className="text-white font-bold flex items-center gap-2 mb-4">
                   <ShieldCheck size={20} className="text-green-500"/> 
-                  Standard Bridge Fix
+                  Auto-Inject Bridge Fix
                 </h3>
                 
                 <div className="mb-5 space-y-2">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">What the script does:</h4>
                   <ul className="text-sm text-slate-300 space-y-2">
                     <li className="flex gap-2 items-start">
-                      <Crosshair size={14} className="text-blue-500 mt-1 shrink-0"/>
-                      <span><strong>Locates Instance:</strong> Targets the WAN connection name field and sets it to "{instanceName}".</span>
+                      <ShieldCheck size={14} className="text-blue-500 mt-1 shrink-0"/>
+                      <span><strong>Anti-Crash:</strong> Neutralizes ZTE's <code>mtu_check_change</code> error to prevent script failures.</span>
                     </li>
                     <li className="flex gap-2 items-start">
                       <Zap size={14} className="text-blue-500 mt-1 shrink-0"/>
-                      <span><strong>Injects Mode:</strong> Forces the "Bridge" option into hidden dropdown menus.</span>
+                      <span><strong>Injects Option:</strong> If "Bridge" is missing from the dropdown, it creates and selects it automatically.</span>
                     </li>
                     <li className="flex gap-2 items-start">
                       <Router size={14} className="text-blue-500 mt-1 shrink-0"/>
                       <span><strong>Sets VLAN:</strong> Configures ID {vlanEnabled ? vlanId : '(Off)'} required for ISP handshake.</span>
-                    </li>
-                    <li className="flex gap-2 items-start">
-                      <CheckCircle2 size={14} className="text-blue-500 mt-1 shrink-0"/>
-                      <span><strong>Binds Ports:</strong> Enables all LAN ports for the bridge connection.</span>
                     </li>
                   </ul>
                 </div>

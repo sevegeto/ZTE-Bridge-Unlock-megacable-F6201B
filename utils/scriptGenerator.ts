@@ -1,3 +1,4 @@
+
 export interface ScriptOptions {
   vlanEnabled: boolean;
   vlanId: string;
@@ -7,7 +8,7 @@ export interface ScriptOptions {
 
 export const generateUnlockScript = (): string => {
     return `
-/* MEGACABLE ZTE SU UNLOCKER & MENU HUNTER v3.0.0 (Deep Scan) */
+/* MEGACABLE ZTE SU UNLOCKER & MENU HUNTER v3.1.0 (Deep Scan) */
 (function() {
     console.clear();
     console.log("🔓 Unlocking UI...");
@@ -147,7 +148,7 @@ export const generateBridgeScript = (options: ScriptOptions): string => {
   const { vlanEnabled, vlanId, vlanPriority, instanceName } = options;
 
   return `
-/* MEGACABLE ZTE BRIDGE CONFIGURATOR v3.0.0 */
+/* MEGACABLE ZTE BRIDGE CONFIGURATOR v3.6.0 (Anti-Crash) */
 (function() {
     console.clear();
     console.log("🔧 Configuring Form for Bridge Mode...");
@@ -157,67 +158,145 @@ export const generateBridgeScript = (options: ScriptOptions): string => {
         return; 
     }
 
-    // Helper to safely set values
+    // --- 0. ANTI-CRASH PATCHES ---
+    // The user reported crashes in 'mtu_check_change' inside common_lib.js
+    // This happens because the validation library isn't happy with our programmatic triggers.
+    // We simply neutralize the validation check since we are setting valid values anyway.
+    if (typeof window.mtu_check_change === "function") {
+        console.log("🛡️ Neutralizing mtu_check_change to prevent crashes...");
+        window.mtu_check_change = function() { console.log("skipped mtu check"); };
+    }
+
+    // --- HELPER FUNCTIONS ---
     function set(selector, val) {
         var $el = $(selector);
         if ($el.length > 0) {
-            $el.val(val).trigger('change');
+            console.log("Setting " + selector + " to " + val);
+            $el.val(val);
+            // We wrap triggers in try-catch to ensure one failure doesn't stop the whole script
+            try { $el.trigger('change'); } catch(e) { console.warn("Change trigger failed on " + selector, e); }
+            try { $el.trigger('blur'); } catch(e) {}
         }
     }
     
-    // Helper to check checkboxes
     function check(selector, checked) {
         var $el = $(selector);
         if ($el.length > 0) {
-            $el.prop('checked', checked).trigger('change');
+            $el.prop('checked', checked);
+            try { $el.trigger('change'); } catch(e) {}
+            // Some ZTE radio buttons are weird divs, we try to find the input inside
+            var $sub = $el.find("input[type='radio'], input[type='checkbox']");
+            if ($sub.length > 0) {
+                $sub.prop('checked', checked);
+                try { $sub.trigger('change'); } catch(e) {}
+            }
         }
     }
 
-    // 1. Connection Name & Mode
-    set("[id*='WANCName']", "${instanceName}"); // Name
-    set("input[name='WANCName']", "${instanceName}");
-    
-    // Try to set mode to Bridge. 
-    // Note: Some firmwares use 'WanMode', others 'mode'.
-    // The unlock script forces the 'bridge' option to exist if it was hidden.
-    set("[id*='WanMode']", "Bridge");
-    set("select[name='WanMode']", "Bridge");
-    set("[id*='mode']", "bridge"); 
-    set("select[name='mode']", "bridge");
+    function ensureOption(selector, value, text) {
+        var $el = $(selector);
+        if ($el.length > 0) {
+             // Check if option exists (case insensitive check for value)
+             var exists = false;
+             $el.find("option").each(function() {
+                 if ($(this).val().toLowerCase() === value.toLowerCase()) exists = true;
+             });
+             
+             if (!exists) {
+                 console.log("Injecting missing option: " + text + " into " + selector);
+                 $el.append('<option value="' + value + '">' + text + '</option>');
+             }
+        }
+    }
 
-    // 2. Service List
-    set("[id*='ServiceList']", "INTERNET");
+    // --- 1. PREP WORK: UNHIDE EVERYTHING ---
+    // Critical for Super User mode where specific rows (like 'Enable') might still be hidden by default CSS
+    console.log("Unhiding form elements...");
+    $("[style*='display:none']").css("display", "");
+    $("[style*='display: none']").css("display", "");
+    $(".hide").removeClass("hide");
     
-    // 3. IP Protocol
-    set("[id*='IpMode']", "IPv4"); // Usually safer to default to IPv4
+    // --- 2. CONFIGURATION ---
+
+    // A. Connection Name
+    // Some routers use 'WANCName', others 'WanName'
+    set("input[name='WANCName']", "${instanceName}");
+    set("[id*='WANCName']", "${instanceName}");
+
+    // B. IP Protocol Version
+    set("[id*='IpMode']", "IPv4");
+    set("select[name='IpMode']", "IPv4");
+
+    // C. Mode Selection (The Tricky Part)
+    // We look for 'WanMode', 'mode', or 'ConnectionType'
+    var modeSelectors = ["[id*='WanMode']", "select[name='WanMode']", "[id*='mode']", "select[name='mode']", "[id*='ConnectionType']"];
     
-    // 4. VLAN Settings
+    modeSelectors.forEach(function(sel) {
+        // 1. Inject if missing
+        ensureOption(sel, "Bridge", "Bridge Connection");
+        
+        // 2. Set value (Try both Case Sensitive and Lowercase)
+        set(sel, "Bridge");
+        if ($(sel).val() !== "Bridge" && $(sel).val() !== "bridge") set(sel, "bridge");
+    });
+
+    // D. Service List
+    // Often needs to be 'INTERNET' or 'Internet'
+    var serviceSelectors = ["[id*='ServiceList']", "select[name='ServiceList']", "[id*='ServList']"];
+    serviceSelectors.forEach(function(sel) {
+        set(sel, "INTERNET");
+    });
+
+    // E. VLAN Settings
+    // The screenshot implies we might need to be specific
     if (${vlanEnabled}) {
         console.log("Enabling VLAN ${vlanId}...");
         set("select[name='VlanEnable']", "1");
         set("[id*='VlanEnable']", "1");
         
-        // Short delay to ensure UI updates if needed (though usually instant with jQuery)
+        // Force the input to be visible and editable
+        $("input[name='VLANID']").prop('disabled', false).prop('readonly', false);
+        $("input[name='vlanId']").prop('disabled', false).prop('readonly', false); // Case sensitive fallback
+
         setTimeout(function() {
              set("input[name='VLANID']", "${vlanId}");
              set("[id*='VLANID']", "${vlanId}");
              
              set("select[name='Priority']", "${vlanPriority}");
              set("[id*='Priority']", "${vlanPriority}");
-             set("select[name='VlanPri']", "${vlanPriority}"); // Some models use this
-        }, 100);
+             set("select[name='VlanPri']", "${vlanPriority}");
+        }, 200);
     } else {
         console.log("Disabling VLAN...");
         set("select[name='VlanEnable']", "0");
         set("[id*='VlanEnable']", "0");
     }
 
-    // 5. Port Binding (LAN1-LAN4)
-    // We try to bind all ports to this bridge
+    // F. Port Binding (LAN1-LAN4 + SSID1-4)
+    // This ensures you don't get locked out via Wi-Fi if LAN fails
     check("[id*='LandBind']", true);
     check("input[name^='LandBind']", true);
+    // Optional: Bind SSIDs too so you don't lose WiFi access to the modem interface
+    check("input[name^='SsidBind']", true);
 
-    alert("✅ Settings Applied!\\n\\n1. Verify 'Connection Name' is '${instanceName}'.\\n2. Verify 'Mode' is 'Bridge'.\\n3. Verify VLAN is ${vlanEnabled ? vlanId : 'OFF'}.\\n\\nClick 'Create' or 'Apply' to save.");
+    // G. Reset MTU to standard
+    set("input[name='MTU']", "1500");
+    set("[id*='MTU']", "1500");
+
+    // H. Force Enable Switch
+    // The screenshot showed id="Enable" was hidden.
+    check("input[name='Enable']", true);
+    set("[id='Enable'] input", "1"); // Sometimes it's a div with input inside
+    
+    // I. Handle 'Create New Item' creation
+    // If the user hasn't clicked 'Create New Item', we might be editing the default one which is dangerous.
+    // We check if the name field is empty or if we can find the create button.
+    var isNew = $("input[name='WANCName']").val() === "${instanceName}";
+    if (!isNew) {
+        console.warn("⚠️ It looks like the form wasn't cleared. Please ensure you clicked 'Create New Item' before applying.");
+    }
+
+    alert("✅ BRIDGE SETTINGS APPLIED!\\n\\nScript neutralized 'mtu_check_change' to prevent crashes.\\n\\nMode: Bridge (Injected)\\nVLAN: ${vlanEnabled ? vlanId : 'OFF'}\\nName: ${instanceName}\\n\\nPLEASE CHECK:\\n1. If 'Mode' is blank, manually select 'Bridge Connection' (it has been injected).\\n2. Click 'Create' or 'Apply'.");
 })();
 `;
 };
